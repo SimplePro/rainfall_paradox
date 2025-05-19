@@ -13,18 +13,31 @@ class Raindrop:
 
     # 초기 위치를 매개변수로 입력받음
     def __init__(self, init_x, init_y):
-        self.x = init_x # x 위치
-        self.y = init_y # y 위치
+
+        self.init_x = init_x
+        self.init_y = init_y
+
+        self.x = init_x
+        self.y = init_y
         
         self.last_time = 0 # 지난 시간
 
     # TIME_INTERVAL 동안의 운동 진행
     def step(self):
-        self.x = WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
+        # self.x = WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
+        self.x = self.init_x + WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
         # self.y = WIND_SPEED * sin(WIND_DIRECTION) * self.last_time + 0.5 * GRAVITATION * self.last_time ** 2
-        self.y = WIND_SPEED * sin(WIND_DIRECTION) * self.last_time + TERMINAL_VELOCITY * self.last_time
+        # self.y = WIND_SPEED * sin(WIND_DIRECTION) * self.last_time + TERMINAL_VELOCITY * self.last_time
+        self.y = self.init_y + WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
 
         self.last_time += TIME_INTERVAL
+
+        # print(self.x, self.y)
+
+    # 바로 전 상태를 반환
+    def get_last_state(self):
+        return self.x - WIND_SPEED * cos(WIND_DIRECTION) * TIME_INTERVAL, self.y - (WIND_SPEED * sin(WIND_DIRECTION) * TIME_INTERVAL + TERMINAL_VELOCITY * TIME_INTERVAL)
+
 
 # 사람 객체
 class Human:
@@ -43,7 +56,7 @@ class Human:
     
     # TIME_INTERVAL 동안의 운동 진행
     def step(self):
-        self.x = self.speed * self.last_time + WIND_SPEED * self.last_time
+        self.x = self.speed * self.last_time + WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
         self.last_time += TIME_INTERVAL
 
 # 환경 객체
@@ -64,6 +77,8 @@ class Environment:
             "front": 0,
             "back": 0
         }
+
+        self.last_time = 0
 
     # TIME_INTERVAL 동안의 운동 진행
     def step(self):
@@ -87,16 +102,42 @@ class Environment:
             # 만약 빗방울이 사람에 부딪혔다면, 제거
             elif self.human.y + self.human.height > self.raindrops[i].y > self.human.y and self.human.x < self.raindrops[i].x < self.human.x + self.human.width:
                 ##### 이쪽에 빗방울이 사람의 어느쪽에 부딪혔는지와 self.collision_rain_count를 갱신해주는 코드를 작성해야함.
+                last_state = self.raindrops[i].get_last_state()
+                top_ = last_state[1] >= self.human.y
+                front_ = last_state[0] >= self.human.x
+                back_ = last_state[0] <= self.human.x
+                
+                if top_:
+                    self.collision_rain_count["top"] += 1
+                
+                elif front_:
+                    self.collision_rain_count["front"] += 1
+                
+                elif back_:
+                    self.collision_rain_count["back"] += 1
+
                 del self.raindrops[i]
             
             i -= 1
         
         # TIME_INTERVAL 동안의 사람 운동 진행
         self.human.step()
+        self.last_time += TIME_INTERVAL
+
+        if self.mode == "simulation":
+            self.simul()
 
     # 모두 실행
     def run(self):
         
         # 사람이 environment를 벗어나기 전까지 진행
-        while self.human.x + self.human.width <= self.width:
+        while self.human.x + self.human.width <= self.width and self.human.x >= 0:
             self.step()
+
+
+if __name__ == '__main__':
+    human = Human(speed=2, height=1.7, width=0.3, init_x=0, init_y=0)
+    env = Environment(rainfall=100, human=human, height=30, width=50, mode="none")
+    env.run()
+
+    print(env.collision_rain_count)
