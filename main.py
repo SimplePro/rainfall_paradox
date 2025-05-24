@@ -45,13 +45,15 @@ class Raindrop:
 class Human:
 
     # 이동 속도와 가로, 세로, 초기 위치를 매개변수로 입력받음
-    def __init__(self, speed, size, init_pos, mode):
+    def __init__(self, speed, size, init_pos, mode, wait):
 
         self.speed = speed
         self.size = size
         self.pos = init_pos
 
         self.mode = mode
+
+        self.wait = wait
 
         if self.mode == "simulation":
             self.box = box(pos=self.pos, size=self.size, color=color.orange)
@@ -65,10 +67,11 @@ class Human:
     def step(self):
         # self.x = self.speed * self.last_time + WIND_SPEED * cos(WIND_DIRECTION) * self.last_time
         # self.pos += (self.speed + WIND_SPEED) * TIME_INTERVAL
-        self.pos += self.v * TIME_INTERVAL
+        if self.last_time >= self.wait:
+            self.pos += self.v * TIME_INTERVAL
 
-        if self.mode == "simulation":
-            self.box.pos = self.pos
+            if self.mode == "simulation":
+                self.box.pos = self.pos
 
         self.last_time += TIME_INTERVAL
 
@@ -114,9 +117,10 @@ class Environment:
             self.raindrops[i].step()
             
             # 만약 빗방울이 environment를 벗어났다면, 제거
-            if self.raindrops[i].pos.y < -self.height/3 \
-                or self.raindrops[i].pos.x < -self.width/2 \
-                    or self.raindrops[i].pos.x > self.width/2:
+            if (self.raindrops[i].pos.y < -self.height/3 \
+                and self.raindrops[i].pos.x < -self.width/2 \
+                    and self.raindrops[i].pos.x > self.width/2) \
+                        or self.raindrops[i].pos.y < -self.height/3:
                 
                 if self.mode == "simulation":
                     self.raindrops[i].sphere.visible = False
@@ -152,8 +156,9 @@ class Environment:
         
         # 사람이 environment를 벗어나기 전까지 진행
         while self.human.pos.x + self.human.size.x/2 <= self.width/2 and self.human.pos.x - self.human.size.x/2 >= -self.width/2:
-            rate(60)
-            print(self.human.pos)
+            if self.mode == "simulation":
+                rate(200)
+            # print(self.human.pos)
             self.step()
 
 
@@ -163,19 +168,20 @@ if __name__ == '__main__':
 
     GRAVITATION = vector(0, -9.8, 0) # 중력 가속도 상수 (종단속도 때문에 아마 안 쓸 듯)
     TERMINAL_VELOCITY = vector(0, -9.0, 0) # 종단 속도
-    TIME_INTERVAL = 0.02 # 한 step당 시간 (s)
-    WIND_SPEED = vector(0, -1, 0) # 바람
-    rainfall = 100
+    TIME_INTERVAL = 0.005 # 한 step당 시간 (s)
+    WIND_SPEED = vector(-0.3, 0, 0) # 바람
+    rainfall = 500
 
-    mode = "simulation"
+    mode = "none"
     env_size = vector(20, 20, 20)
-    human_speed = vector(1.0, 0, 0)
+    human_speed = vector(5, 0, 0)
     human_size = vector(0.3, 1.7, 0.6)
+    wait = abs(env_size.y*4/3 / (WIND_SPEED + TERMINAL_VELOCITY).y)
 
     if mode == "simulation":
         canvas(width=1920, height=1080, background=color.white)
 
-    human = Human(speed=human_speed, size=human_size, init_pos=vector(-env_size.x/2+human_size.x/2, -env_size.y/3 + human_size.y/2 + 0.25, 0), mode=mode)
+    human = Human(speed=human_speed, size=human_size, init_pos=vector(-env_size.x/2+human_size.x/2, -env_size.y/3 + human_size.y/2 + 0.25, 0), mode=mode, wait=wait)
     env = Environment(rainfall=rainfall, human=human, height=env_size.y, depth=env_size.z, width=env_size.x, mode=mode)
     env.run()
 
