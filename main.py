@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from random import uniform
 from math import pi, cos, sin
 from vpython import *
+import datetime
+from tqdm import tqdm
 
 # 빗방울 객체
 class Raindrop:
@@ -157,9 +159,13 @@ class Environment:
         # 사람이 environment를 벗어나기 전까지 진행
         while self.human.pos.x + self.human.size.x/2 <= self.width/2 and self.human.pos.x - self.human.size.x/2 >= -self.width/2:
             if self.mode == "simulation":
-                rate(200)
+                rate(1000)
             # print(self.human.pos)
             self.step()
+
+        with open("experiments_report.txt", "a") as f: 
+            f.write(f"datetime: {datetime.datetime.now()}, TERMINAL_VELOCITY: {TERMINAL_VELOCITY}, WIND_SPEED: {WIND_SPEED}, rainfall: {rainfall}, env_size: {env_size}, human_speed: {human_speed}, human_size: {human_size}, top_collision: {env.collision_rain_count['top']}, side_collision: {env.collision_rain_count['side']}\n")
+
 
 
 if __name__ == '__main__':
@@ -168,21 +174,34 @@ if __name__ == '__main__':
 
     GRAVITATION = vector(0, -9.8, 0) # 중력 가속도 상수 (종단속도 때문에 아마 안 쓸 듯)
     TERMINAL_VELOCITY = vector(0, -9.0, 0) # 종단 속도
-    TIME_INTERVAL = 0.005 # 한 step당 시간 (s)
+    TIME_INTERVAL = 0.01 # 한 step당 시간 (s)
     WIND_SPEED = vector(-0.3, 0, 0) # 바람
-    rainfall = 500
+    rainfall = 100 * 10
 
     mode = "none"
-    env_size = vector(20, 20, 20)
-    human_speed = vector(5, 0, 0)
+    env_size = vector(100, 20, 5)
+    human_speed = vector(15, 0, 0)
     human_size = vector(0.3, 1.7, 0.6)
     wait = abs(env_size.y*4/3 / (WIND_SPEED + TERMINAL_VELOCITY).y)
 
-    if mode == "simulation":
-        canvas(width=1920, height=1080, background=color.white)
 
-    human = Human(speed=human_speed, size=human_size, init_pos=vector(-env_size.x/2+human_size.x/2, -env_size.y/3 + human_size.y/2 + 0.25, 0), mode=mode, wait=wait)
-    env = Environment(rainfall=rainfall, human=human, height=env_size.y, depth=env_size.z, width=env_size.x, mode=mode)
-    env.run()
+    top_collision_count = []
+    side_collision_count = []
+    for _ in tqdm(range(10)):
 
-    print(env.collision_rain_count)
+        if mode == "simulation":
+            canvas(width=1920, height=1080, background=color.white)
+
+        human = Human(speed=human_speed, size=human_size, init_pos=vector(-env_size.x/2+human_size.x/2, -env_size.y/3 + human_size.y/2 + 0.25, 0), mode=mode, wait=wait)
+        env = Environment(rainfall=rainfall, human=human, height=env_size.y, depth=env_size.z, width=env_size.x, mode=mode)
+        env.run()
+
+        # print(env.collision_rain_count)
+        top_collision_count.append(env.collision_rain_count["top"])
+        side_collision_count.append(env.collision_rain_count["side"])
+
+        if mode == "simulation":
+            del human
+            del env
+
+    print(top_collision_count, side_collision_count)
